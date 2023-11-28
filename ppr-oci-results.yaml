@@ -1,0 +1,76 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: results-oci-
+  labels:
+    acmiel-test: "true"
+spec:
+  taskRunTemplate:
+    podTemplate:
+      env:
+        # The oci-results script respects this env var
+        # The appstudio-pipeline SA needs to have push permissions here
+        # The appstudio-pipeline SA and Enterprise Contract need to have pull permissions here
+        - name: OCI_RESULTS_REPOSITORY
+          value: quay.io/acmiel-rhtap/default/test-application/devfile-sample-python-basic
+  pipelineSpec:
+    tasks:
+      - name: foo
+        taskSpec:
+          results:
+            - name: big
+            - name: really_big
+          steps:
+            - name: produce-results
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              script: |
+                #!/usr/bin/env bash
+                set -xeuo pipefail
+
+                # Have to write the results to a custom results dir, writing them to /tekton/results
+                # would cause the produce-results step to fail
+                mkdir /tekton/home/results
+                head -c 8192 /dev/zero | tr '\0' 'a' >/tekton/home/results/big
+
+                sbom_blob_url=https://quay.io/v2/acmiel-rhtap/default/test-application/devfile-sample-python-basic/blobs/sha256:00293cccc377ae8fbccb410662fbbf75f60bde3c279ba26313c9f03a42e4e033
+                curl -fsS -L "$sbom_blob_url" -o /tekton/home/results/really_big
+
+            - name: set-oci-results
+              image: quay.io/acmiel-test/results-cli:latest
+              # Upload the results in a separate step at the end of the task, write the references
+              # to /tekton/results
+              command:
+                - oci-results
+                - set-all
+                - /tekton/home/results
+                - --output-references=/tekton/results
+
+      - name: bar
+        params:
+          - name: big
+            value: $(tasks.foo.results.big)
+          - name: really_big
+            value: $(tasks.foo.results.really_big)
+        taskSpec:
+          params:
+            - name: big
+            - name: really_big
+          steps:
+            - name: get-oci-results
+              image: quay.io/acmiel-test/results-cli:latest
+              # Download the results referenced by the params passed in from the previous task.
+              # Download them to a shared params dir so that they are accessible in other steps.
+              command:
+                - oci-results
+                - get-all
+                - big=$(params.big)
+                - really_big=$(params.really_big)
+                - --output-results=/tekton/home/params
+
+            - name: consume-results
+              image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+              script: |
+                #!/usr/bin/env bash
+                set -xeuo pipefail
+
+                wc -c /tekton/home/params/* | numfmt --to=iec-i
