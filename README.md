@@ -67,3 +67,7 @@ Hi baz
 /tmp/downloaded-results/foo
 Hi foo
 ```
+
+## Usage with Tekton
+
+See the [example PipelineRun](./ppr-oci-results.yaml).
