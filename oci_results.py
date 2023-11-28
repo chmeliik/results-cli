@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+import argparse
+import hashlib
+import os
+import subprocess
+import sys
+from pathlib import Path
+from typing import IO
+
+
+def argtype_result_ref(arg: str) -> tuple[str, str]:
+    result_name, _, oci_ref = arg.partition("=")
+    if not oci_ref:
+        raise ValueError(f"expected result_name=oci_reference, got {arg}")
+    return result_name, oci_ref
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    subcommands = parser.add_subparsers(required=True)
+
+    set_parser = subcommands.add_parser("set")
+    get_parser = subcommands.add_parser("get")
+    set_all_parser = subcommands.add_parser("set-all")
+    get_all_parser = subcommands.add_parser("get-all")
+
+    set_parser.add_argument("-f", "--file", required=True)
+    set_parser.add_argument("-o", "--output", type=argparse.FileType("w"), default="-")
+    set_parser.set_defaults(func=set_result)
+
+    get_parser.add_argument("reference")
+    get_parser.add_argument("-o", "--output", default="-")
+    get_parser.set_defaults(func=get_result)
+
+    set_all_parser.add_argument("input_results")
+    set_all_parser.add_argument("-o", "--output-references", default=".")
+    set_all_parser.set_defaults(func=set_all_results)
+
+    get_all_parser.add_argument("input_references", type=argtype_result_ref, nargs="*")
+    get_all_parser.add_argument("-o", "--output-results", default=".")
+    get_all_parser.set_defaults(func=get_all_results)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+def set_result(args: argparse.Namespace) -> None:
+    _set_result(Path(args.file), args.output)
+
+
+def get_result(args: argparse.Namespace) -> None:
+    _get_result(args.reference, Path(args.output))
+
+
+def set_all_results(args: argparse.Namespace) -> None:
+    input_results_dir = Path(args.input_results)
+    output_dir = Path(args.output_references)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for input_result_path in input_results_dir.iterdir():
+        if input_result_path.is_file():
+            output_result_path = output_dir.joinpath(input_result_path.name)
+            with output_result_path.open("w") as f:
+                _set_result(input_result_path, f)
+
+
+def get_all_results(args: argparse.Namespace) -> None:
+    output_dir = Path(args.output_results)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for result_name, oci_ref in args.input_references:
+        _get_result(oci_ref, output_dir.joinpath(result_name))
+
+
+def _set_result(result_file: Path, output_file: IO[str]) -> None:
+    repository = os.getenv("OCI_RESULTS_REPOSITORY")
+    if not repository:
+        raise ValueError("The OCI_RESULTS_REPOSITORY env var needs to be set")
+
+    with open(result_file, "rb") as f:
+        sha256 = hashlib.sha256(f.read()).hexdigest()
+
+    result_uri_with_tag = f"{repository}:result-sha256-{sha256}"
+    proc = subprocess.run(
+        [
+            "cosign",
+            "upload",
+            "blob",
+            "-f",
+            result_file,
+            result_uri_with_tag,
+        ],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    )
+    result_uri_with_digest = proc.stdout.strip()
+    # cosign would normally print the uri at the end, the output looks weird without it
+    print(result_uri_with_digest, file=sys.stderr)
+    print(result_uri_with_digest, file=output_file, end="")
+
+
+def _get_result(oci_reference: str, output_path: Path) -> None:
+    print(f"getting {output_path} <- {oci_reference}", file=sys.stderr)
+    subprocess.run(["crane", "export", oci_reference, output_path], check=True)
+
+
+if __name__ == "__main__":
+    main()
