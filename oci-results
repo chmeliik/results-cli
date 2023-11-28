@@ -12,7 +12,7 @@ def argtype_result_ref(arg: str) -> tuple[str, str]:
     result_name, _, oci_ref = arg.partition("=")
     if not oci_ref:
         raise ValueError(f"expected result_name=oci_reference, got {arg}")
-    return result_name, oci_ref
+    return result_name.strip(), oci_ref.strip()
 
 
 def main() -> None:
@@ -49,7 +49,7 @@ def set_result(args: argparse.Namespace) -> None:
 
 
 def get_result(args: argparse.Namespace) -> None:
-    _get_result(args.reference, Path(args.output))
+    _get_result(args.reference.strip(), Path(args.output))
 
 
 def set_all_results(args: argparse.Namespace) -> None:
