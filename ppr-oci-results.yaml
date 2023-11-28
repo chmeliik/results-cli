@@ -30,10 +30,8 @@ spec:
                 # Have to write the results to a custom results dir, writing them to /tekton/results
                 # would cause the produce-results step to fail
                 mkdir /tekton/home/results
-                head -c 8192 /dev/zero | tr '\0' 'a' >/tekton/home/results/big
-
-                sbom_blob_url=https://quay.io/v2/acmiel-rhtap/default/test-application/devfile-sample-python-basic/blobs/sha256:00293cccc377ae8fbccb410662fbbf75f60bde3c279ba26313c9f03a42e4e033
-                curl -fsS -L "$sbom_blob_url" -o /tekton/home/results/really_big
+                head -c 8192 /dev/zero | tr '\0' 'a' >/tekton/home/results/big  # 8Ki
+                head -c $((2**22)) /dev/zero | tr '\0' 'a' >/tekton/home/results/really_big  # 4Mi
 
             - name: set-oci-results
               image: quay.io/acmiel-test/results-cli:latest
