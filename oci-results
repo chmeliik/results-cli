@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -26,18 +27,22 @@ def main() -> None:
 
     set_parser.add_argument("-f", "--file", required=True)
     set_parser.add_argument("-o", "--output", type=argparse.FileType("w"), default="-")
+    set_parser.add_argument("--producer-id")
     set_parser.set_defaults(func=set_result)
 
     get_parser.add_argument("reference")
     get_parser.add_argument("-o", "--output", default="-")
+    get_parser.add_argument("--producer-id")
     get_parser.set_defaults(func=get_result)
 
     set_all_parser.add_argument("input_results")
     set_all_parser.add_argument("-o", "--output-references", default=".")
+    set_all_parser.add_argument("--producer-id")
     set_all_parser.set_defaults(func=set_all_results)
 
     get_all_parser.add_argument("input_references", type=argtype_result_ref, nargs="*")
     get_all_parser.add_argument("-o", "--output-results", default=".")
+    get_all_parser.add_argument("--producer-id")
     get_all_parser.set_defaults(func=get_all_results)
 
     args = parser.parse_args()
@@ -45,11 +50,11 @@ def main() -> None:
 
 
 def set_result(args: argparse.Namespace) -> None:
-    _set_result(Path(args.file), args.output)
+    _set_result(Path(args.file), args.output, args.producer_id)
 
 
 def get_result(args: argparse.Namespace) -> None:
-    _get_result(args.reference.strip(), Path(args.output))
+    _get_result(args.reference.strip(), Path(args.output), args.producer_id)
 
 
 def set_all_results(args: argparse.Namespace) -> None:
@@ -61,7 +66,7 @@ def set_all_results(args: argparse.Namespace) -> None:
         if input_result_path.is_file():
             output_result_path = output_dir.joinpath(input_result_path.name)
             with output_result_path.open("w") as f:
-                _set_result(input_result_path, f)
+                _set_result(input_result_path, f, args.producer_id)
 
 
 def get_all_results(args: argparse.Namespace) -> None:
@@ -69,10 +74,12 @@ def get_all_results(args: argparse.Namespace) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for result_name, oci_ref in args.input_references:
-        _get_result(oci_ref, output_dir.joinpath(result_name))
+        _get_result(oci_ref, output_dir.joinpath(result_name), args.producer_id)
 
 
-def _set_result(result_file: Path, output_file: IO[str]) -> None:
+def _set_result(
+    result_file: Path, output_file: IO[str], producer_id: str | None = None
+) -> None:
     repository = os.getenv("OCI_RESULTS_REPOSITORY")
     if not repository:
         raise ValueError("The OCI_RESULTS_REPOSITORY env var needs to be set")
@@ -97,10 +104,22 @@ def _set_result(result_file: Path, output_file: IO[str]) -> None:
     result_uri_with_digest = proc.stdout.strip()
     # cosign would normally print the uri at the end, the output looks weird without it
     print(result_uri_with_digest, file=sys.stderr)
-    print(result_uri_with_digest, file=output_file, end="")
+    result_ref = {"ref": result_uri_with_digest}
+    if producer_id:
+        result_ref["producer_id"] = producer_id
+    json.dump(result_ref, output_file, separators=(",", ":"))
 
 
-def _get_result(oci_reference: str, output_path: Path) -> None:
+def _get_result(
+    result_reference: str, output_path: Path, expect_producer_id: str | None = None
+) -> None:
+    reference = json.loads(result_reference)
+    oci_reference = reference["ref"]
+    producer_id = reference.get("producer_id")
+    if expect_producer_id and expect_producer_id != producer_id:
+        raise ValueError(
+            f'Expected "producer_id": "{expect_producer_id}" for result {result_reference}'
+        )
     print(f"getting {output_path} <- {oci_reference}", file=sys.stderr)
     subprocess.run(["crane", "export", oci_reference, output_path], check=True)
 

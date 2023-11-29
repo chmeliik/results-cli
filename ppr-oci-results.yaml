@@ -42,6 +42,7 @@ spec:
                 - set-all
                 - /tekton/home/results
                 - --output-references=/tekton/results
+                - --producer-id=produce-results
 
       - name: bar
         params:
@@ -64,6 +65,7 @@ spec:
                 - big=$(params.big)
                 - really_big=$(params.really_big)
                 - --output-results=/tekton/home/params
+                - --producer-id=produce-results
 
             - name: consume-results
               image: registry.access.redhat.com/ubi9/ubi-minimal:latest
