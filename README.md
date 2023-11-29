@@ -3,7 +3,9 @@
 Depends on [crane](https://github.com/google/go-containerregistry/tree/main/cmd/crane)
 and [cosign](https://github.com/sigstore/cosign).
 
-**Upload a file to an OCI repository:**
+## Usage
+
+### Upload a file to an OCI repository
 
 You need to log in to the registry first, e.g. with `podman login`, `skopeo login`
 or any other container tool that has a login command.
@@ -26,7 +28,7 @@ $ cat /tmp/readme
 quay.io/acmiel-test/test@sha256:4a972c6ceb550c796287f25d91177d6de47c0bbd296ed31d3429e1da8c907b07
 ```
 
-**Download a file from an OCI repository:**
+### Download a file from an OCI repository
 
 ```shell
 $ ./oci-results get "$(cat /tmp/readme)" -o /tmp/README.md
@@ -34,7 +36,7 @@ $ cat /tmp/README.md
 <this doc>
 ```
 
-**Upload/download multiple results:**
+### Upload/download multiple results
 
 ```shell
 $ mkdir /tmp/my-results
