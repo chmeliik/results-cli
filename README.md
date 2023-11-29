@@ -1,5 +1,8 @@
 # results-cli
 
+Depends on [crane](https://github.com/google/go-containerregistry/tree/main/cmd/crane)
+and [cosign](https://github.com/sigstore/cosign).
+
 **Upload a file to an OCI repository:**
 
 You need to log in to the registry first, e.g. with `podman login`, `skopeo login`
