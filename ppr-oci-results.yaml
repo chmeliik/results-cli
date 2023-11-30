@@ -37,12 +37,13 @@ spec:
               image: quay.io/acmiel-test/results-cli:latest
               # Upload the results in a separate step at the end of the task, write the references
               # to /tekton/results
-              command:
-                - oci-results
-                - set-all
-                - /tekton/home/results
-                - --output-references=/tekton/results
-                - --producer-id=produce-results
+              script: |
+                #!/usr/bin/env bash
+                set -xeuo pipefail
+
+                cd /tekton/home/results
+                oci-results set -f ./big -o $(results.big.path) --producer-id=a
+                oci-results set -f ./really_big -o $(results.really_big.path) --producer-id=b
 
       - name: bar
         params:
@@ -59,13 +60,19 @@ spec:
               image: quay.io/acmiel-test/results-cli:latest
               # Download the results referenced by the params passed in from the previous task.
               # Download them to a shared params dir so that they are accessible in other steps.
-              command:
-                - oci-results
-                - get-all
-                - big=$(params.big)
-                - really_big=$(params.really_big)
-                - --output-results=/tekton/home/params
-                - --producer-id=produce-results
+              env:
+                - name: big
+                  value: $(params.big)
+                - name: really_big
+                  value: $(params.really_big)
+              script: |
+                #!/usr/bin/env bash
+                set -xeuo pipefail
+
+                mkdir /tekton/home/params
+                cd /tekton/home/params
+                oci-results get "$big" -o ./big --producer-id=a
+                oci-results get "$really_big" -o ./really_big --producer-id=b
 
             - name: consume-results
               image: registry.access.redhat.com/ubi9/ubi-minimal:latest
