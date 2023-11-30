@@ -25,7 +25,7 @@ digest-based image reference can be written to a file with the `-o` option.
 ```shell
 $ ./oci-results set -f README.md -o /tmp/readme
 $ cat /tmp/readme
-quay.io/acmiel-test/test@sha256:4a972c6ceb550c796287f25d91177d6de47c0bbd296ed31d3429e1da8c907b07
+{"type":"oci","ref":"quay.io/acmiel-test/test@sha256:4a972c6ceb550c796287f25d91177d6de47c0bbd296ed31d3429e1da8c907b07"}
 ```
 
 ### Download a file from an OCI repository
@@ -46,11 +46,11 @@ $ ./oci-results set-all /tmp/my-results --output-references=/tmp/result-refs
 
 $ for f in /tmp/result-refs/*; do echo "$f"; cat "$f"; done
 /tmp/result-refs/bar
-quay.io/acmiel-test/test@sha256:61953dfa624378f931e23468e5800f6790f88f369683572e9dcd685ed5775745
+{"type":"oci","ref":"quay.io/acmiel-test/test@sha256:61953dfa624378f931e23468e5800f6790f88f369683572e9dcd685ed5775745"}
 /tmp/result-refs/baz
-quay.io/acmiel-test/test@sha256:22d73a7c53f4d718e4fb36570f44a666773457673fd423f242865e7c890132bc
+{"type":"oci","ref":"quay.io/acmiel-test/test@sha256:22d73a7c53f4d718e4fb36570f44a666773457673fd423f242865e7c890132bc"}
 /tmp/result-refs/foo
-quay.io/acmiel-test/test@sha256:430e06dc69d99f8f0701496c503a0e07e2059874ba1b246c3d5a4b4f8ae7f13e
+{"type":"oci","ref":"quay.io/acmiel-test/test@sha256:430e06dc69d99f8f0701496c503a0e07e2059874ba1b246c3d5a4b4f8ae7f13e"}
 ```
 
 ```shell

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -97,10 +98,20 @@ def _set_result(result_file: Path, output_file: IO[str]) -> None:
     result_uri_with_digest = proc.stdout.strip()
     # cosign would normally print the uri at the end, the output looks weird without it
     print(result_uri_with_digest, file=sys.stderr)
-    print(result_uri_with_digest, file=output_file, end="")
+    json.dump(
+        {"type": "oci", "ref": result_uri_with_digest},
+        output_file,
+        separators=(",", ":"),
+    )
 
 
-def _get_result(oci_reference: str, output_path: Path) -> None:
+def _get_result(result_reference: str, output_path: Path) -> None:
+    match json.loads(result_reference):
+        case {"type": "oci", "ref": str(oci_reference)}:
+            pass
+        case _:
+            raise ValueError(f"Expected an OCI result reference, got {result_reference}")
+
     print(f"getting {output_path} <- {oci_reference}", file=sys.stderr)
     subprocess.run(["crane", "export", oci_reference, output_path], check=True)
 
